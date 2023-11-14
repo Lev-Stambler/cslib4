@@ -1,13 +1,14 @@
 import Lake
 open Lake DSL
 
-
 package «cslib» {
-  -- add any package configuration options here
 }
 
 require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git"
+
+require llmstep from git
+  "https://github.com/wellecks/llmstep"
 
 @[default_target]
 lean_lib «Cslib» {
@@ -15,5 +16,5 @@ lean_lib «Cslib» {
 }
 
 lean_lib «BooleanAnalysis» {
-  -- add any package configuration options here
+  -- moreLinkArgs := #["-L./lake-packages/LeanInfer/build/lib", "-lonnxruntime", "-lstdc++"]
 }

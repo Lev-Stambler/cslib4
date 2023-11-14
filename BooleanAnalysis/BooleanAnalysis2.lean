@@ -1,17 +1,15 @@
-
 import Mathlib.Data.Vector
 import Mathlib.Data.Finset.Basic
 import Mathlib.Tactic.Linarith
 -- import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Algebra.BigOperators.Basic
 import BooleanAnalysis.BooleanVector
-import LLMstep
 import Mathlib.Data.Fintype.Vector
-import Mathlib.Data.Setoid.Partition
--- import Mathlib.Probability.Notation
+
 
 open Vector BigOperators Finset
-open Classical
+
+
 
 -- def
 
@@ -48,30 +46,9 @@ def Bool.toRat (b : Bool) : Rat := if b then -1 else 1
 
 #eval Max.max (-1) (2)
 
-
-instance : IsCommutative Bool Bool.xor := ⟨
-  by
-    intro a b
-    cases a <;> cases b <;> (simp [Bool.xor];)
-⟩
-
-instance : IsAssociative Bool Bool.xor := ⟨
-  by
-    intro a b c
-    cases a <;> cases b <;> cases c <;> (simp [Bool.xor];)
-  ⟩
-
-#check Fin.fintype 10
-
 -- -- TODO: better definition??
--- TODO: big oplus for XOR syntax
-def vector_innerprod_bool {n : Nat} (x y : BoolVec n) : Bool :=
-  fold (Bool.xor : Bool → Bool → Bool) true (fun j => ((x.get j) ∧  (y.get j))) (Fin.fintype n).elems
-
 def vector_innerprod {n : Nat} (x y : BoolVec n) : Rat :=
-  ↑ (vector_innerprod_bool x y).toRat
--- def vector_innerprod {n : Nat} (x y : BoolVec n) : Rat :=
---   ∏ j : Fin n,  Bool.toRat ((x.get j) ∧  (y.get j))
+  ∏ j : Fin n,  Bool.toRat ((x.get j) ∧  (y.get j))
   -- Vector.map₂ (and . .) x y
   -- |>.toList
   -- |>.foldl xor false
@@ -80,9 +57,6 @@ infixr:75 " ⬝ " => (vector_innerprod . .)
 
 
 def BooleanFunc {n : Nat}  := (Vector Bool n) → Rat
-
-def BooleanFinset := Finset.image Bool.toRat Finset.univ
-#check BooleanFinset
 
 -- -- -- Wait is the below actually right?
 -- -- -- TODO: cast the bellow?
@@ -127,37 +101,8 @@ def symm_diff {n : Nat} (S₁ S₂ : BoolVec n) : BoolVec n:=
 #check expecation
   -- (∑ x : Vector Bool n, f x) / 2^n
 
-def dot_setoid {n : Nat} (a : Vector Bool (n := n)) : Setoid (Vector Bool n) := Setoid.ker (fun x => vector_innerprod_bool x a)
-    -- ⟨fun x => fun y => x ⬝ a = y ⬝ a,
-    --   ⟨
-    --     by intro x; simp,
-    --     by intro x y; simp; intro h; rw [h],
-    --     by intro x y z; simp; intros h1 h2; rw [h1, h2]
-    --   ⟩
-    -- ⟩
-
-#check Setoid.classes (dot_setoid (n := 10) (ofFn (fun _ => true)))
-
-noncomputable instance {n : Nat} (a : Vector Bool (n := n)) : DecidableRel (dot_setoid (n := n) a).r :=
-  fun x y => by
-    simp [dot_setoid]
-    apply Classical.propDecidable
-
-lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[fun x => x ⬝ a] = 0 := by
-  simp [vector_innerprod, Bool.toRat, expecation]
-  -- have eq_opposites : ∀ x : Vector Bool (n := n), ∃ x', x' ≠ x ∧ x ⬝ a = -1 * (x' ⬝ a) := by sorry
-  rw [Finset.sum_partition (dot_setoid (n := n) a)]
-  simp
-  -- TODO: we now want to somehow say that there are two classes etc.
-
-  -- Hmmmm now what? I want to say that there are only two equivalence classes, but I don't know how to do that
-  -- Otherwise we can drop using setoid and do things more manually
-
-
-
-
 -- TODO: what here
-lemma expec_prod_nonzero_of_0' {n : Nat} (f : BooleanFunc (n := n)) :
+lemma expec_prod_nonzero_of_0 {n : Nat} (f : BooleanFunc (n := n)) :
   (∃ a,  a ≠ Inhabited.default ∧ ∀ x, f x = x ⬝ a) → (𝔼[f] = 0)  := by
   intro ⟨a, h1, h2⟩
   simp [expecation]; left
@@ -167,8 +112,8 @@ lemma expec_prod_nonzero_of_0' {n : Nat} (f : BooleanFunc (n := n)) :
   rw [Finset.sum_congr rfl this]
 
   simp [Inhabited.default, *] at h1
+  simp
   simp [vector_innerprod, Bool.toRat]
-
   let t₁ := fun x => (∏ x₁ : Fin n, if Vector.get x x₁ = true ∧ Vector.get a x₁ = true then (-1 : Rat) else (1 : Rat))
   let t₂ := fun x => (∏ x₁ : { i : Fin n // Vector.get a i = true },
     let ⟨x₁, _⟩ := x₁
