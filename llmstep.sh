@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 source $HOME/anaconda3/bin/activate base
 cd lake-packages/llmstep
 python3 python/server_vllm.py

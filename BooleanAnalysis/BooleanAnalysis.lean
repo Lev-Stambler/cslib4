@@ -127,14 +127,14 @@ def symm_diff {n : Nat} (S₁ S₂ : BoolVec n) : BoolVec n:=
 #check expecation
   -- (∑ x : Vector Bool n, f x) / 2^n
 
-def dot_setoid {n : Nat} (a : Vector Bool (n := n)) : Setoid (Vector Bool n) := Setoid.ker (fun x => vector_innerprod_bool x a)
-    -- ⟨fun x => fun y => x ⬝ a = y ⬝ a,
-    --   ⟨
-    --     by intro x; simp,
-    --     by intro x y; simp; intro h; rw [h],
-    --     by intro x y z; simp; intros h1 h2; rw [h1, h2]
-    --   ⟩
-    -- ⟩
+def dot_setoid {n : Nat} (a : Vector Bool (n := n)) : Setoid (Vector Bool n) := --Setoid.ker (fun x => vector_innerprod_bool x a)
+    ⟨fun x => fun y => x ⬝ a = y ⬝ a,
+      ⟨
+        by intro x; simp,
+        by intro x y; simp; intro h; rw [h],
+        by intro x y z; simp; intros h1 h2; rw [h1, h2]
+      ⟩
+    ⟩
 
 #check Setoid.classes (dot_setoid (n := 10) (ofFn (fun _ => true)))
 
@@ -143,17 +143,43 @@ noncomputable instance {n : Nat} (a : Vector Bool (n := n)) : DecidableRel (dot_
     simp [dot_setoid]
     apply Classical.propDecidable
 
-lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[fun x => x ⬝ a] = 0 := by
-  simp [vector_innerprod, Bool.toRat, expecation]
-  -- have eq_opposites : ∀ x : Vector Bool (n := n), ∃ x', x' ≠ x ∧ x ⬝ a = -1 * (x' ⬝ a) := by sorry
-  rw [Finset.sum_partition (dot_setoid (n := n) a)]
+#check @Quotient.mk'' (Vector Bool 10) (dot_setoid default) --: Vector Bool n → Quotient (dot_setoid a)
+
+lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[χ a] = 0 := by
+  simp [expecation]
+  let one_set := Finset.filter (fun x => (χ a) x  = 1) (Finset.univ : Finset (Vector Bool n))
+  let neg_one_set := Finset.filter (fun x => (χ a) x = -1) (Finset.univ : Finset (Vector Bool n))
+
+  have : ∑ x : Vector Bool n, (χ a) x  = ∑ x in one_set, (χ a) x + ∑ y in neg_one_set, (χ a) y := by
+    have unioned : (Finset.univ : Finset (Vector Bool n)) = one_set ∪ neg_one_set := by
+      ext x
+      apply Iff.intro
+      . intro h
+        -- TOOD: idk
+        cases (h_1 : (χ a) x = 1)) with
+        | h_1 => simp [one_set]
+        | h_neg_1 => simp [neg_one_set]
+      . simp
+    have disjoint : Disjoint one_set neg_one_set := by
+      sorry
+    rw [unioned]
+    rw [Finset.sum_union disjoint]
+
+  rw [this]
+  have eq_1 : ∀ x ∈ one_set, (χ a) x = 1 := by
+    intro x h
+    simp [one_set] at h
+    simp [h]
+  have eq_neg_1 : ∀ x ∈ neg_one_set, (χ a) x = -1 := by
+    intro x h
+    simp [neg_one_set] at h
+    simp [h]
+
+  rw [Finset.sum_eq_card_nsmul eq_1, Finset.sum_eq_card_nsmul eq_neg_1]
+  have : card one_set = card neg_one_set := by
+    sorry
+  rw [this]
   simp
-  -- TODO: we now want to somehow say that there are two classes etc.
-
-  -- Hmmmm now what? I want to say that there are only two equivalence classes, but I don't know how to do that
-  -- Otherwise we can drop using setoid and do things more manually
-
-
 
 
 -- TODO: what here
