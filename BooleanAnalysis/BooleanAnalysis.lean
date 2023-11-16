@@ -127,25 +127,29 @@ def symm_diff {n : Nat} (S₁ S₂ : BoolVec n) : BoolVec n:=
 #check expecation
   -- (∑ x : Vector Bool n, f x) / 2^n
 
-def dot_setoid {n : Nat} (a : Vector Bool (n := n)) : Setoid (Vector Bool n) := --Setoid.ker (fun x => vector_innerprod_bool x a)
-    ⟨fun x => fun y => x ⬝ a = y ⬝ a,
-      ⟨
-        by intro x; simp,
-        by intro x y; simp; intro h; rw [h],
-        by intro x y z; simp; intros h1 h2; rw [h1, h2]
-      ⟩
-    ⟩
+-- def dot_setoid {n : Nat} (a : Vector Bool (n := n)) : Setoid (Vector Bool n) := --Setoid.ker (fun x => vector_innerprod_bool x a)
+--     ⟨fun x => fun y => x ⬝ a = y ⬝ a,
+--       ⟨
+--         by intro x; simp,
+--         by intro x y; simp; intro h; rw [h],
+--         by intro x y z; simp; intros h1 h2; rw [h1, h2]
+--       ⟩
+--     ⟩
 
-#check Setoid.classes (dot_setoid (n := 10) (ofFn (fun _ => true)))
+-- #check Setoid.classes (dot_setoid (n := 10) (ofFn (fun _ => true)))
 
-noncomputable instance {n : Nat} (a : Vector Bool (n := n)) : DecidableRel (dot_setoid (n := n) a).r :=
-  fun x y => by
-    simp [dot_setoid]
-    apply Classical.propDecidable
+-- noncomputable instance {n : Nat} (a : Vector Bool (n := n)) : DecidableRel (dot_setoid (n := n) a).r :=
+--   fun x y => by
+--     simp [dot_setoid]
+--     apply Classical.propDecidable
 
-#check @Quotient.mk'' (Vector Bool 10) (dot_setoid default) --: Vector Bool n → Quotient (dot_setoid a)
+-- #check @Quotient.mk'' (Vector Bool 10) (dot_setoid default) --: Vector Bool n → Quotient (dot_setoid a)
 
-lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[χ a] = 0 := by
+-- TODO: idk how to do this but want proof that returned item is true at spot
+-- def first_non_false (a : Vector Bool n) (h : a ≠ default) : ⟨Fin n, Vector.get a⟩ := sorry
+
+lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (ha_neq : a ≠ default) : 𝔼[χ a] = 0 := by
+  let n := Nat.succ n'
   simp [expecation]
   let one_set := Finset.filter (fun x => (χ a) x  = 1) (Finset.univ : Finset (Vector Bool n))
   let neg_one_set := Finset.filter (fun x => (χ a) x = -1) (Finset.univ : Finset (Vector Bool n))
@@ -155,13 +159,19 @@ lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[χ a] 
       ext x
       apply Iff.intro
       . intro h
-        -- TOOD: idk
-        cases (h_1 : (χ a) x = 1)) with
-        | h_1 => simp [one_set]
-        | h_neg_1 => simp [neg_one_set]
+        simp [one_set, neg_one_set, χ, vector_innerprod, Bool.toRat]
+        cases vector_innerprod_bool x a with
+        | false => simp
+        | true => simp
       . simp
     have disjoint : Disjoint one_set neg_one_set := by
-      sorry
+      have : ∀ ⦃a⦄, a ∈ one_set → a ∉ neg_one_set := by
+        intro a h
+        simp [one_set, χ] at h
+        simp [neg_one_set, χ]
+        rw [h]
+        simp
+      rwa [Finset.disjoint_left]
     rw [unioned]
     rw [Finset.sum_union disjoint]
 
@@ -176,10 +186,30 @@ lemma expec_prod_nonzero_of_0 {n : Nat} (a : Vector Bool (n := n)) : 𝔼[χ a] 
     simp [h]
 
   rw [Finset.sum_eq_card_nsmul eq_1, Finset.sum_eq_card_nsmul eq_neg_1]
+  -- TODO: **this whole thing should actually be its own lemma**
   have : card one_set = card neg_one_set := by
-    sorry
+    simp [one_set, neg_one_set, χ, vector_innerprod]
+    let f : (a : Vector Bool n) → a ∈ one_set → (Vector Bool n) := fun a =>
+      fun ha =>
+        Vector.cons (Bool.not (Vector.head a)) (Vector.tail a)
+    have h₁ :  ∀ a (ha : a ∈ one_set), f a ha ∈ neg_one_set := by
+      intro x ha
+      simp [one_set, χ, vector_innerprod, vector_innerprod_bool] at ha
+      simp [neg_one_set, χ, vector_innerprod, vector_innerprod_bool]
+      rw [← ha]
+      sorry
+
+
+    have h₂ : ∀ a b (ha : a ∈ one_set) (hb : b ∈ one_set) (h : f a ha = f b hb), a = b := sorry
+    have h₃ : ∀ b ∈ neg_one_set, ∃ a, ∃ (ha : a ∈ one_set), f a ha = b := sorry
+
+    exact Finset.card_congr f h₁ h₂ h₃
+
   rw [this]
   simp
+
+
+
 
 
 -- TODO: what here
