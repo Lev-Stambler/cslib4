@@ -67,6 +67,7 @@ instance : IsAssociative Bool Bool.xor := ⟨
 -- TODO: big oplus for XOR syntax
 def vector_innerprod_bool {n : Nat} (x y : BoolVec n) : Bool :=
   fold (Bool.xor : Bool → Bool → Bool) true (fun j => ((x.get j) ∧  (y.get j))) (Fin.fintype n).elems
+  -- TODO: maybe we need to define inner prod in terms of a multiplication
 
 def vector_innerprod {n : Nat} (x y : BoolVec n) : Rat :=
   ↑ (vector_innerprod_bool x y).toRat
@@ -148,6 +149,28 @@ def symm_diff {n : Nat} (S₁ S₂ : BoolVec n) : BoolVec n:=
 -- TODO: idk how to do this but want proof that returned item is true at spot
 -- def first_non_false (a : Vector Bool n) (h : a ≠ default) : ⟨Fin n, Vector.get a⟩ := sorry
 
+def flip_nth {n : Nat} (a : Vector Bool (n := n)) (i : Fin n) : Vector Bool n :=
+  let b := Vector.get a i
+  let a' := Vector.set a i (Bool.not b)
+  a'
+
+lemma exists_non_default {n : Nat} (a : Vector Bool (n := n)) (h : a ≠ default) : ∃ i, Vector.get a i = true := by
+  sorry
+
+lemma flip_on_true_negate {n : Nat} (a : Vector Bool (n := n)) (i : Fin n) (x : Vector Bool n) : (Vector.get a i = true) →
+  vector_innerprod_bool (flip_nth x i) a = Bool.not (vector_innerprod_bool x a ) := by
+  intro h
+  simp [flip_nth]
+  simp [vector_innerprod_bool, h]
+  rw [Bool.not]
+  sorry
+
+
+
+-- def get_first_non_false {n : Nat} (a : Vector Bool (n := n)) (h : a ≠ default) : Fin n :=
+--   let ⟨i, _⟩ := exists_non_default a h
+--   i
+
 lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (ha_neq : a ≠ default) : 𝔼[χ a] = 0 := by
   let n := Nat.succ n'
   simp [expecation]
@@ -188,20 +211,33 @@ lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (h
   rw [Finset.sum_eq_card_nsmul eq_1, Finset.sum_eq_card_nsmul eq_neg_1]
   -- TODO: **this whole thing should actually be its own lemma**
   have : card one_set = card neg_one_set := by
-    simp [one_set, neg_one_set, χ, vector_innerprod]
-    let f : (a : Vector Bool n) → a ∈ one_set → (Vector Bool n) := fun a =>
-      fun ha =>
-        Vector.cons (Bool.not (Vector.head a)) (Vector.tail a)
-    have h₁ :  ∀ a (ha : a ∈ one_set), f a ha ∈ neg_one_set := by
-      intro x ha
-      simp [one_set, χ, vector_innerprod, vector_innerprod_bool] at ha
-      simp [neg_one_set, χ, vector_innerprod, vector_innerprod_bool]
-      rw [← ha]
-      sorry
+    -- simp [one_set, neg_one_set, χ, vector_innerprod]
+    let ⟨ind_true, h_ind⟩ := exists_non_default a ha_neq
+
+    let f := fun x => fun hx : x ∈ one_set => flip_nth x ind_true
+    have h₁ :  ∀ x (hx : x ∈ one_set), f x hx ∈ neg_one_set := by
+      intro x hx
+      simp [χ, vector_innerprod]
+      have h : vector_innerprod_bool (flip_nth x ind_true) a = Bool.not (vector_innerprod_bool x a) := by
+        apply flip_on_true_negate
+        simp [one_set] at hx
+        exact h_ind
+      simp [h]
+      have : vector_innerprod_bool x a = False := by
+        simp [one_set, χ, vector_innerprod, Bool.toRat] at hx
+        simp [hx]
+        have : vector_innerprod_bool x a = true ∨ vector_innerprod_bool x a = false := by
+          cases vector_innerprod_bool x a with
+          | false => simp
+          | true => simp
+        cases this with
+        | inl ht => rw [← Not] at hx; contradiction
+        | inr hf => simp [hf]
+      simp [this]
 
 
-    have h₂ : ∀ a b (ha : a ∈ one_set) (hb : b ∈ one_set) (h : f a ha = f b hb), a = b := sorry
-    have h₃ : ∀ b ∈ neg_one_set, ∃ a, ∃ (ha : a ∈ one_set), f a ha = b := sorry
+    have h₂ : ∀ x y (hx : x ∈ one_set) (hy : y ∈ one_set) (h : f x hx = f y hy), x = y := sorry
+    have h₃ : ∀ y ∈ neg_one_set, ∃ x, ∃ (hx : x ∈ one_set), f x hx = y := sorry
 
     exact Finset.card_congr f h₁ h₂ h₃
 
