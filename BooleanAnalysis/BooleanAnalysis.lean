@@ -165,6 +165,34 @@ lemma flip_on_true_negate {n : Nat} (a : Vector Bool (n := n)) (i : Fin n) (x : 
   rw [Bool.not]
   sorry
 
+lemma vector_set_get_eq {α : Type } {n : Nat} (y : Vector α n) (ind : Fin n) : Vector.set y ind (Vector.get y ind) = y
+  := by
+    simp [Vector.set, Vector.get]
+    apply Vector.eq
+    simp
+    sorry
+    -- match y.1, ind.1 with
+    -- | List.cons x xs, zero => simp [List.set];
+    -- | List.cons x xs, Nat.succ n => simp
+    -- | List.nil, _ => simp
+
+    -- TODO: maybe the below
+    -- induction n with
+    -- | zero => simp; rw [Vector.eq_nil y]; rfl
+    -- | succ n_prior =>
+    --   -- Make the ih explicit
+    --   rename_i n_ih
+    --   match y.1,  with
+    --   | x::xs, n => simp
+
+
+
+
+
+
+    -- cases ind with
+    -- | nil => simp
+    -- | cons i' ih => simp [ih]
 
 
 -- def get_first_non_false {n : Nat} (a : Vector Bool (n := n)) (h : a ≠ default) : Fin n :=
@@ -218,6 +246,7 @@ lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (h
     have h₁ :  ∀ x (hx : x ∈ one_set), f x hx ∈ neg_one_set := by
       intro x hx
       simp [χ, vector_innerprod]
+      -- TODO: generalize!!
       have h : vector_innerprod_bool (flip_nth x ind_true) a = Bool.not (vector_innerprod_bool x a) := by
         apply flip_on_true_negate
         simp [one_set] at hx
@@ -235,8 +264,32 @@ lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (h
         | inr hf => simp [hf]
       simp [this]
 
+    -- TODO: move on from this **whole thing** for now. Get to h₃. Then clean up and remove sorries
+    -- Then try to shorten things down. Then *ask for help* on Tullip
+    have h₂a : ∀ x y (hx : x ∈ one_set) (hy : y ∈ one_set) (h : f x hx = f y hy), x = y := by
+      intro x y hx hy h
+      simp [f, flip_nth] at h
+      apply Vector.eq
+      induction n' with
+      | zero => simp; sorry
+      | succ n => sorry
+      -- AHAHAHAH
 
-    have h₂ : ∀ x y (hx : x ∈ one_set) (hy : y ∈ one_set) (h : f x hx = f y hy), x = y := sorry
+
+    -- TODO: there is almost definitly a better way to do this
+    have h₂ : ∀ x y (hx : x ∈ one_set) (hy : y ∈ one_set) (h : f x hx = f y hy), x = y := by
+      intro x y hx hy h
+      simp [f, flip_nth] at h
+      have not_not_eq : Vector.set x ind_true (Bool.not (Vector.get (Vector.set x ind_true (Bool.not (Vector.get x ind_true))) ind_true)) = Vector.set y ind_true (Bool.not (Vector.get (Vector.set y ind_true (Bool.not (Vector.get y ind_true))) ind_true)) := by
+        rw [h]
+        simp
+        rw [vector_set_get_eq]
+      have x_not_not : Vector.set x ind_true (Bool.not (Vector.get (Vector.set x ind_true (Bool.not (Vector.get x ind_true))) ind_true)) = x := by
+        simp; exact vector_set_get_eq _ _
+      have y_not_not : Vector.set y ind_true (Bool.not (Vector.get (Vector.set y ind_true (Bool.not (Vector.get y ind_true))) ind_true)) = y := by
+        simp; exact vector_set_get_eq _ _
+      rwa [x_not_not, y_not_not] at not_not_eq
+
     have h₃ : ∀ y ∈ neg_one_set, ∃ x, ∃ (hx : x ∈ one_set), f x hx = y := sorry
 
     exact Finset.card_congr f h₁ h₂ h₃
