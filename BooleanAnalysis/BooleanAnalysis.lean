@@ -11,7 +11,7 @@ import Mathlib.Data.Setoid.Partition
 -- import Mathlib.Probability.Notation
 
 open Vector BigOperators Finset
-open Classical
+open Classical BooleanVector
 
 -- def
 
@@ -48,36 +48,18 @@ def Bool.toRat (b : Bool) : Rat := if b then -1 else 1
 
 #eval Max.max (-1) (2)
 
-
-instance : IsCommutative Bool Bool.xor := ⟨
-  by
-    intro a b
-    cases a <;> cases b <;> (simp [Bool.xor];)
-⟩
-
-instance : IsAssociative Bool Bool.xor := ⟨
-  by
-    intro a b c
-    cases a <;> cases b <;> cases c <;> (simp [Bool.xor];)
-  ⟩
-
 #check Fin.fintype 10
 
 -- -- TODO: better definition??
 -- TODO: big oplus for XOR syntax
-def vector_innerprod_bool {n : Nat} (x y : BoolVec n) : Bool :=
-  fold (Bool.xor : Bool → Bool → Bool) true (fun j => ((x.get j) ∧  (y.get j))) (Fin.fintype n).elems
-  -- TODO: maybe we need to define inner prod in terms of a multiplication
+-- def vector_innerprod_bool {n : Nat} (x y : BoolVec n) : Bool :=
+--   fold (Bool.xor : Bool → Bool → Bool) true (fun j => ((x.get j) ∧  (y.get j))) (Fin.fintype n).elems
+--   -- TODO: maybe we need to define inner prod in terms of a multiplication
 
-def vector_innerprod {n : Nat} (x y : BoolVec n) : Rat :=
-  ↑ (vector_innerprod_bool x y).toRat
 -- def vector_innerprod {n : Nat} (x y : BoolVec n) : Rat :=
---   ∏ j : Fin n,  Bool.toRat ((x.get j) ∧  (y.get j))
-  -- Vector.map₂ (and . .) x y
-  -- |>.toList
-  -- |>.foldl xor false
+--   ↑ (vector_innerprod_bool x y).toRat
 
-infixr:75 " ⬝ " => (vector_innerprod . .)
+-- infixr:75 " ⬝ " => (vector_innerprod . .)
 
 
 def BooleanFunc {n : Nat}  := (Vector Bool n) → Rat
@@ -243,6 +225,7 @@ lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (h
     let ⟨ind_true, h_ind⟩ := exists_non_default a ha_neq
 
     let f := fun x => fun hx : x ∈ one_set => flip_nth x ind_true
+
     have h₁ :  ∀ x (hx : x ∈ one_set), f x hx ∈ neg_one_set := by
       intro x hx
       simp [χ, vector_innerprod]
@@ -290,8 +273,13 @@ lemma expec_prod_nonzero_of_0 {n' : Nat} (a : Vector Bool (n := Nat.succ n')) (h
         simp; exact vector_set_get_eq _ _
       rwa [x_not_not, y_not_not] at not_not_eq
 
-    have h₃ : ∀ y ∈ neg_one_set, ∃ x, ∃ (hx : x ∈ one_set), f x hx = y := sorry
-
+    have h₃ : ∀ y ∈ neg_one_set, ∃ x, ∃ (hx : x ∈ one_set), f x hx = y := by
+      intro y hy
+      let x := flip_nth y ind_true
+      use x
+      have hx : x ∈ one_set := by
+        simp [flip_nth, one_set]
+        simp [χ, vector_innerprod, vector_innerprod_bool]
     exact Finset.card_congr f h₁ h₂ h₃
 
   rw [this]
