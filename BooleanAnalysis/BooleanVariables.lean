@@ -36,13 +36,13 @@ variable (S : BoolVec (N := N))
 
 #check Finset.sum
 
-noncomputable def expecationVecBool : Real :=
+noncomputable def expectionVecBool : Real :=
   (∑ i : Vector Bool N, f i) / 2^N
 
 noncomputable def expecationBool (f : Bool → Real) : Real :=
   (∑ i : Bool, f i) / 2
 
-notation "𝔼[" f' "]" => expecationVecBool (N := N) f'
+notation "𝔼[" f' "]" => expectionVecBool (N := N) f'
 notation "𝔼'[" f' "]" => expecationBool f'
 
 #check 𝔼[f]
@@ -59,9 +59,45 @@ noncomputable def vector_innerprod : Real :=
 
 infixr:75 " ⬝ " => (vector_innerprod (N := N) . .)
 
-theorem mult_linearity_of_expectation (fs : Vector (Bool → Real) N) :
-  𝔼[fun v =>  ∏ i : Fin N, (Vector.get fs i) (Vector.get v i)] = ∏ i : Fin N, 𝔼'[Vector.get fs i] := by
-  sorry
+#check ∏ i : Fin 10, if i == 0 then 1 else 2
+
+-- TODO: how does this work???
+lemma vector_space_size : (n : Nat) → Finset.card (Finset.univ : Finset (Vector Bool n)) = 2^n := by
+  simp [Finset.card_univ, Finset.card_range]
+
+theorem mult_linearity_of_expectation : (n : Nat) → (fs : Vector (Bool → Real) n) →
+  expectionVecBool (N := n) (fun (v: Vector Bool n) =>  ∏ i : Fin n, (Vector.get fs i) (Vector.get v i)) = ∏ i : Fin n, 𝔼'[Vector.get fs i]
+  | Nat.zero, fs => by
+    simp [expectionVecBool, expecationBool]
+  | Nat.succ n, fs => by
+    simp [expectionVecBool, expecationBool]
+    have : (∏ x : Fin (Nat.succ n), (Vector.get fs x true + Vector.get fs x false)) / 2 ^ Nat.succ n
+      = ((∏ x : Fin n, (Vector.get fs.tail x true + Vector.get fs.tail x false)) / 2 ^ n) * (fs.head true + fs.head false) / 2 := by
+      sorry
+    rw [this]
+    have : (∏ x : Fin n, (Vector.get fs.tail x true + Vector.get fs.tail x false)) / 2 ^ n = ∏ x : Fin n, 𝔼'[Vector.get fs.tail x] := by
+      simp
+    rw [this]
+    rw [←mult_linearity_of_expectation n (fs.tail), expectionVecBool]
+    sorry
+
+
+  --  := by
+  --   -- TODO: fix up expec..
+  --   simp [expectionVecBool, expecationBool]
+  --   exact Nat.recOn N
+  --     (by
+  --       simp
+  --     )
+  --     (fun n ih => by
+  --       -- have incI : Fin.ofNat (Nat.succ n) ∈ (Finset (Fin (Nat.succ n))) := by
+  --       --   simp
+  --       have : (∏ x : Fin (Nat.succ n), (Vector.get fs x true + Vector.get fs x false)) / 2 ^ Nat.succ n
+
+  --       rw [prod_eq_mul_prod_diff_singleton _]
+  --       sorry
+  --     )
+
 
 noncomputable def χ (S : BoolVec (N := N)) : BooleanFunc (N := N) :=
   (fun (v : BoolVec (N := N)) => (v ⬝ S))
