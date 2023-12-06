@@ -29,10 +29,12 @@ def BoolVec := Vector Bool N
 
 def BooleanFunc  := (Vector Bool N) → Real
 
+def BoolVec.add (x y : BoolVec (N := N)) : BoolVec (N := N) := Vector.ofFn
+  (fun i => (if x.get i = true then ¬ y.get i else y.get i))
 
 variable (f g : BooleanFunc (N := N))
 variable (x y : BoolVec (N := N))
-variable (S : BoolVec (N := N))
+variable (S T : BoolVec (N := N))
 
 #check Finset.sum
 
@@ -42,8 +44,13 @@ noncomputable def expectionVecBool : Real :=
 noncomputable def expecationBool (f : Bool → Real) : Real :=
   (∑ i : Bool, f i) / 2
 
+noncomputable def func_innerpord (f g : BooleanFunc (N := N)) : Real :=
+  (∑ i : Vector Bool N, f i * g i) / 2^N
+
 notation "𝔼[" f' "]" => expectionVecBool (N := N) f'
 notation "𝔼'[" f' "]" => expecationBool f'
+notation:max "⟪" f "," g "⟫" => func_innerpord (N := N) f g
+
 
 #check 𝔼[f]
 
@@ -71,33 +78,19 @@ theorem mult_linearity_of_expectation : (n : Nat) → (fs : Vector (Bool → Rea
     simp [expectionVecBool, expecationBool]
   | Nat.succ n, fs => by
     simp [expectionVecBool, expecationBool]
-    have : (∏ x : Fin (Nat.succ n), (Vector.get fs x true + Vector.get fs x false)) / 2 ^ Nat.succ n
-      = ((∏ x : Fin n, (Vector.get fs.tail x true + Vector.get fs.tail x false)) / 2 ^ n) * (fs.head true + fs.head false) / 2 := by
-      sorry
-    rw [this]
-    have : (∏ x : Fin n, (Vector.get fs.tail x true + Vector.get fs.tail x false)) / 2 ^ n = ∏ x : Fin n, 𝔼'[Vector.get fs.tail x] := by
-      simp
-    rw [this]
-    rw [←mult_linearity_of_expectation n (fs.tail), expectionVecBool]
+    calc
+      -- TODO: head and tails not right!!
+      (∑ x : Vector Bool (Nat.succ n), ∏ i : Fin (Nat.succ n), Vector.get fs i (Vector.get x i)) / 2 ^ Nat.succ n =
+        (∑ x : Vector Bool (Nat.succ n), ((∏ i : Fin n, Vector.get fs i (Vector.get x i)) * Vector.get fs n.succ (Vector.get x n.succ))) / 2 ^ Nat.succ n := by sorry
+      _ = (∑ x : Vector Bool n, ∏ i : Fin n, Vector.get fs i (Vector.get x i)) * (Vector.get fs n.succ true + Vector.get fs n.succ false) / 2 ^ Nat.succ n := by sorry
+      _ = (∑ x : Vector Bool n, ∏ i : Fin n, Vector.get (fs.drop 1) i (Vector.get x i)) * ((Vector.get fs n + 2) true + (Vector.get fs n + 1) false) / 2 ^ Nat.succ n := by sorry
+      _ = (∑ x : Vector Bool n, ∏ i : Fin n, Vector.get (fs.drop 1) i (Vector.get x i)) / 2 ^ n * ((Vector.get fs n + 1) true + (Vector.get fs n + 1) false) / 2 := by sorry
+      _ = (expectionVecBool (N := n) (fun (v: Vector Bool n) =>  ∏ i : Fin n, (Vector.get (fs.drop 1) i) (Vector.get v i))) * ((Vector.get fs n + 1) true + (Vector.get fs n + 1) false) / 2 := by sorry
+
+    rw [mult_linearity_of_expectation n (fs.drop 1)]
+    simp [expecationBool]
+    -- TODO: this
     sorry
-
-
-  --  := by
-  --   -- TODO: fix up expec..
-  --   simp [expectionVecBool, expecationBool]
-  --   exact Nat.recOn N
-  --     (by
-  --       simp
-  --     )
-  --     (fun n ih => by
-  --       -- have incI : Fin.ofNat (Nat.succ n) ∈ (Finset (Fin (Nat.succ n))) := by
-  --       --   simp
-  --       have : (∏ x : Fin (Nat.succ n), (Vector.get fs x true + Vector.get fs x false)) / 2 ^ Nat.succ n
-
-  --       rw [prod_eq_mul_prod_diff_singleton _]
-  --       sorry
-  --     )
-
 
 noncomputable def χ (S : BoolVec (N := N)) : BooleanFunc (N := N) :=
   (fun (v : BoolVec (N := N)) => (v ⬝ S))
@@ -105,14 +98,19 @@ noncomputable def χ (S : BoolVec (N := N)) : BooleanFunc (N := N) :=
 def innerprod_decomposed : Vector (Bool → Real) N := Vector.ofFn
   (fun i => (fun (b : Bool) => (if S.get i then b else ¬b).toReal))
 
-lemma χ_eq_prod_of_fns (S : BoolVec (N := N)) :
-  χ S = fun v => ∏ i : Fin N, ((innerprod_decomposed S).get i) (v.get i) := by
-  sorry
-
+lemma χ_eq_prod_of_fns (S : BoolVec (N := N)) : χ S = fun v => ∏ i : Fin N, ((innerprod_decomposed S).get i) (v.get i) := by
+  apply funext
+  intro v
+  simp [χ, vector_innerprod, innerprod_decomposed]
+  have : ∀ x : Fin N, (if Vector.get v x = true then S.get x else decide (S.get x = false)) =
+    (if Vector.get S x = true then Vector.get v x else decide (Vector.get v x = false)) := by
+      intro x
+      cases (Vector.get v x) <;> (simp; cases (Vector.get S x) <;> simp)
+  simp [this]
 
 def nonzero (a : Vector Bool N) : Prop := ∃ i : Fin N, a.get i = true
 
-lemma expec_prod_nonzero_of_0 (a : Vector Bool N) (ha_neq : nonzero (N := N) a) : 𝔼[χ a] = 0 := Exists.elim ha_neq
+lemma expec_prod_nonzero_eq_0 (a : Vector Bool N) (ha_neq : nonzero (N := N) a) : 𝔼[χ a] = 0 := Exists.elim ha_neq
   (fun i => by
     intro hi
     rw [χ_eq_prod_of_fns, mult_linearity_of_expectation]
@@ -126,11 +124,27 @@ lemma expec_prod_nonzero_of_0 (a : Vector Bool N) (ha_neq : nonzero (N := N) a) 
     use i
     have huniv : i ∈ univ := by simp
     exact ⟨huniv, this⟩
-
-    -- rw [mult_linearity_of_expectation]
   )
 
+/--
+  We can note that symmetric difference is the same as addition in the Boolean ring
+-/
+lemma chi_mul_chi_eq_symm_diff (S T : BoolVec (N := N)) : (fun v => (χ S v * χ T v)) = fun v => χ (BoolVec.add S T) v := by
+  apply funext
+  sorry
 
+
+lemma expec_chis_eq_0 (hNeq : S ≠ T) : ⟪χ S, χ T⟫  = 0 := by
+  rw [func_innerpord]
+  conv =>
+    lhs; lhs; rhs;
+  rw [chi_mul_chi_eq_symm_diff]
+  have : nonzero (BoolVec.add S T) := by
+    sorry
+  have expDefn : (∑ v : Vector Bool N, χ (BoolVec.add S T) v) / 2 ^ N = 𝔼[χ (BoolVec.add S T)] := by
+    rfl
+
+  rw [expDefn, expec_prod_nonzero_eq_0 (BoolVec.add S T) this]
 
 
 -- lemma BoolVec.add_comm (x y : BoolVec (α := α) N) : x + y = y + x := by
